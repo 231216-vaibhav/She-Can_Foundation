@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const compression = require('compression');
 
 const submissionsRoutes = require('./routes/submissions');
 const errorHandler = require('./middleware/errorHandler');
@@ -68,9 +69,26 @@ app.post('/api/submissions', submissionLimiter);
 // ==========================================
 // 3. Static Client Serving & HTML Routing
 // ==========================================
+// Enable Gzip/Brotli compression for fast text transfers (HTML, CSS, JS)
+app.use(compression());
+
+// Browser caching options for static assets to avoid repeated loading
+const staticOptions = {
+    maxAge: '1y',
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            // Do not cache HTML files to ensure live updates are caught
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        } else {
+            // Cache images, styles, and scripts aggressively (1 year)
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+    }
+};
+
 // Serve static client assets from BOTH client/ and public/ as fallbacks to support both structures
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'client')));
+app.use(express.static(path.join(__dirname, 'public'), staticOptions));
+app.use(express.static(path.join(__dirname, 'client'), staticOptions));
 
 // Route for homepage
 app.get('/', (req, res) => {
